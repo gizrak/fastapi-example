@@ -120,3 +120,41 @@ def test_create_multiple_users():
     assert len(data) == 2
     assert data[0]["id"] == 1
     assert data[1]["id"] == 2
+
+
+# --- Tests for UserCreate validation and transformation ---
+
+def test_create_user_username_too_short():
+    setup_function()
+    response = client.post("/users/", json={"username": "ab", "email": "test@example.com"})
+    assert response.status_code == 422 # Unprocessable Entity
+    # Further check detail if needed, e.g. response.json()['detail'][0]['msg']
+
+def test_create_user_username_too_long():
+    setup_function()
+    response = client.post("/users/", json={"username": "a" * 51, "email": "test@example.com"})
+    assert response.status_code == 422
+
+def test_create_user_username_not_alphanumeric():
+    setup_function()
+    response = client.post("/users/", json={"username": "user!@#", "email": "test@example.com"})
+    assert response.status_code == 422
+
+def test_create_user_invalid_email():
+    setup_function()
+    response = client.post("/users/", json={"username": "validuser", "email": "not-an-email"})
+    assert response.status_code == 422
+
+def test_create_user_username_lowercase_transformation():
+    setup_function()
+    response_post = client.post("/users/", json={"username": "TESTUSER", "email": "test@example.com"})
+    assert response_post.status_code == 200
+    data_post = response_post.json()
+    assert data_post["username"] == "testuser" # Check if immediately lowercased in response
+    user_id = data_post["id"]
+
+    # Verify that fetching the user also returns the lowercase username
+    response_get = client.get(f"/users/{user_id}")
+    assert response_get.status_code == 200
+    data_get = response_get.json()
+    assert data_get["username"] == "testuser"
