@@ -1,0 +1,12 @@
+Reminder: Ensure the FastAPI server (`uvicorn main:app --reload`) is running before executing this script.
+The /users/ endpoint will return an empty list if no users have been created on the server yet.
+Starting performance test with 200 requests and concurrency limit of 50...
+--- Test Configuration ---
+Target URL: http://127.0.0.1:8000/users/
+Total Requests Sent: 200
+Configured Concurrency Limit (for httpx client): 50
+--- Results ---
+Successful Requests: 200
+Failed Requests: 0
+Total Time Taken: 1.4796 seconds
+Requests Per Second (RPS): 135.17
