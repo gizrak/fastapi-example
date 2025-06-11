@@ -4,7 +4,8 @@ from typing import List, Union
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr, field_validator
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -105,6 +106,9 @@ async def get_or_create_user(email: str, username: str):
 
 app = FastAPI()
 
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # In-memory list to store users
 users_db: List["User"] = [] # Use forward reference for User
 next_user_id = 1
@@ -139,8 +143,7 @@ class UserCreate(BaseModel):
 
 @app.get("/")
 async def read_root():
-    await asyncio.sleep(0.001)
-    return {"Hello": "World"}
+    return FileResponse("static/index.html")
 
 
 @app.post("/users/", response_model=User)
@@ -262,4 +265,7 @@ async def callback(code: str = None): # Made code optional for the disabled case
     jwt_token = create_access_token(
         data={"sub": user.email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    return {"access_token": jwt_token, "token_type": "bearer"}
+    return RedirectResponse(
+        url=f"/static/handle_auth.html#access_token={jwt_token}&token_type=bearer",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
