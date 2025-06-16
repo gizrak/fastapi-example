@@ -2,9 +2,10 @@ import asyncio
 import os # Add os import
 from typing import List, Union
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr, field_validator
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -43,22 +44,14 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # tokenUrl can be any placeholder here as we handle token generation separately
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(request: Request, token_from_header: str = Depends(oauth2_scheme)):
     if not AUTH_ENABLED:
-        # If auth is disabled, return a mock/first user.
-        # This is a simplified approach. In a real app, you might want a more specific mock user
-        # or disallow operations that strictly require a real authenticated user.
         if users_db:
-            # Returning a copy to prevent accidental modification of the DB user outside of CRUD ops
             mock_user_data = users_db[0].model_dump()
             return User(**mock_user_data)
         else:
-            # If no users exist, and auth is disabled, this endpoint probably shouldn't be called
-            # or you need a more sophisticated mock user strategy.
-            # For now, let's create a very basic mock user on the fly.
-            # This part might need adjustment based on how services consuming this expect the user object.
             return User(id=0, username="mockuser", email="mock@example.com", hashed_password=None)
 
     credentials_exception = HTTPException(
@@ -66,8 +59,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    token_from_cookie = request.cookies.get("access_token")
+    final_token = token_from_cookie or token_from_header
+
+    if final_token is None:
+        # This will now correctly trigger if neither cookie nor header token is present
+        # when auto_error=False for oauth2_scheme.
+        raise credentials_exception
+
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
@@ -80,6 +82,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             user = u
             break
     if user is None:
+        # This case might happen if a valid token's user was deleted from db
         raise credentials_exception
     return user
 
@@ -105,6 +108,7 @@ async def get_or_create_user(email: str, username: str):
     return new_user
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 # Mount static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -265,7 +269,44 @@ async def callback(code: str = None): # Made code optional for the disabled case
     jwt_token = create_access_token(
         data={"sub": user.email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    return RedirectResponse(
-        url=f"/static/handle_auth.html#access_token={jwt_token}&token_type=bearer",
-        status_code=status.HTTP_303_SEE_OTHER
+
+    # Set the JWT token in an HttpOnly cookie and redirect to /main
+    redirect_response = RedirectResponse(url="/main", status_code=status.HTTP_302_FOUND)
+    redirect_response.set_cookie(
+        key="access_token",
+        value=jwt_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # max_age is in seconds
+        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # also in seconds from now
+        samesite="Lax", # Or "Strict"
+        secure=not DEBUG # Dynamically set based on environment
     )
+    return redirect_response
+
+
+@app.get("/main", response_class=HTMLResponse) # Specify HTMLResponse
+async def main_page(request: Request, current_user: User = Depends(get_current_user)):
+    if not AUTH_ENABLED and current_user.username == "mockuser": # If auth disabled and it's the generic mock user
+        # Potentially provide some indication that this is a mock view
+        # For now, just pass it through.
+        pass
+
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "user": current_user}
+    )
+
+
+@app.post("/logout") # Changed to POST as it changes server state (session)
+async def logout_user():
+    # Create a redirect response to the login page
+    response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
+    # Clear the access_token cookie by setting it with an expired time and no value
+    response.delete_cookie(
+        key="access_token",
+        httponly=True, # Match settings used when setting the cookie
+        samesite="Lax", # Match settings
+        secure=False # Match settings (should be True in prod if original was True)
+    )
+    return response
