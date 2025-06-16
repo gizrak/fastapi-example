@@ -38,19 +38,47 @@ async def read_root(request: Request):
     await asyncio.sleep(0.001)
 
     current_user = None
+    access_token_for_js = None
     if AUTH_ENABLED:
         try:
+            # Passing request and None for token_from_header, so get_current_user will check cookies.
             current_user = await get_current_user(request, None)
+            if current_user:
+                access_token_for_js = request.cookies.get("access_token")
         except HTTPException:
+            # This will catch errors from get_current_user if token is invalid/expired or user not found
             current_user = None
+            access_token_for_js = None  # Ensure it's None if user auth fails
+    # If AUTH_ENABLED is false, get_current_user returns a mock user or default.
+    # In this case, there might not be a real "access_token" cookie unless previously set.
+    # If current_user is None even with AUTH_ENABLED=false (e.g. no mock user setup), token remains None.
+    elif not AUTH_ENABLED:  # When auth is disabled
+        current_user = await get_current_user(request, None)  # Get mock user if any
+        # Create a mock token for WebSocket connection when auth is disabled
+        if current_user:
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token_for_js = create_access_token(
+                data={"sub": current_user.email}, expires_delta=access_token_expires
+            )
+
+    # Convert user object to dict for JSON serialization in template
+    user_data = None
+    if current_user:
+        user_data = {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+        }
 
     return templates.TemplateResponse(
-        "index.html",
+        "index.html.j2",
         {
             "request": request,
             "users": users_db,
             "auth_enabled": AUTH_ENABLED,
             "user": current_user,
+            "user_data": user_data,
+            "access_token_for_js": access_token_for_js,
         },
     )
 
@@ -131,11 +159,25 @@ async def callback(code: str = None):
 
 @router.get("/main", response_class=HTMLResponse)
 async def main_page(request: Request, current_user: User = Depends(get_current_user)):
-    if not AUTH_ENABLED and current_user.username == "mockuser":
-        pass
+    # current_user is obtained via Depends(get_current_user).
+    # If AUTH_ENABLED is true and authentication fails, HTTPException is raised by the dependency.
+    # If AUTH_ENABLED is false, get_current_user provides a mock user.
 
+    access_token_for_js = None
+    if current_user:  # User is authenticated or it's a mock user
+        # We attempt to get the cookie. It might be None if it's a mock user session without a real cookie.
+        access_token_for_js = request.cookies.get("access_token")
+
+    # For consistency with read_root, ensure index.html gets all expected context.
     return templates.TemplateResponse(
-        "index.html", {"request": request, "user": current_user}
+        "index.html.j2",
+        {
+            "request": request,
+            "user": current_user,
+            "users": users_db,  # Added for consistency
+            "auth_enabled": AUTH_ENABLED,  # Added for consistency
+            "access_token_for_js": access_token_for_js,
+        },
     )
 
 

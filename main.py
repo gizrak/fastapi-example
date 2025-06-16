@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from app.routers import web
+from app.routers import chat, web
 from app.routers.api.v1 import users
 
 # Load environment variables from .env file
@@ -16,8 +16,25 @@ app = FastAPI(
 # Include routers
 app.include_router(web.router)  # Web pages (excluded from docs)
 app.include_router(users.router)  # API endpoints (included in docs)
+app.include_router(chat.router)  # Chat WebSocket endpoints
 
 
+import os
+
+# Debug endpoint to list all routes (only in development mode)
+if os.getenv("DEBUG_MODE") == "true":
+    @app.get("/debug/routes")
+    async def list_routes():
+        routes = []
+        for route in app.routes:
+            routes.append(
+                {
+                    "path": route.path,
+                    "methods": getattr(route, "methods", None),
+                    "name": getattr(route, "name", None),
+                }
+            )
+        return routes
 if __name__ == "__main__":
     import uvicorn
 

@@ -48,9 +48,13 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 async def get_current_user(
-    request: Request, token_from_header: str = Depends(oauth2_scheme)
+    request: Request,
+    token_from_header: str = Depends(oauth2_scheme), # For HTTP Bearer token
+    direct_token: str = None # For explicit token passing (e.g. WebSockets)
 ):
     if not AUTH_ENABLED:
+        # If auth is disabled, return a mock user immediately.
+        # No need to process any tokens.
         if users_db:
             mock_user_data = users_db[0].model_dump()
             return User(**mock_user_data)
@@ -68,10 +72,18 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token_from_cookie = request.cookies.get("access_token")
-    final_token = token_from_cookie or token_from_header
+    final_token = None
+    if direct_token:
+        final_token = direct_token
+    else:
+        # This part is for when get_current_user is used as a regular HTTP dependency
+        # or if direct_token is not supplied.
+        token_from_cookie = request.cookies.get("access_token")
+        # token_from_header is the parameter value, typically from Depends(oauth2_scheme)
+        final_token = token_from_cookie or token_from_header
 
     if final_token is None:
+        # This will be caught if AUTH_ENABLED is true and no token could be found.
         raise credentials_exception
 
     try:
