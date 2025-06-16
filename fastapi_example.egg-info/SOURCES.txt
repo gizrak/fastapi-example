@@ -1,8 +1,0 @@
-README.md
-pyproject.toml
-fastapi_example.egg-info/PKG-INFO
-fastapi_example.egg-info/SOURCES.txt
-fastapi_example.egg-info/dependency_links.txt
-fastapi_example.egg-info/requires.txt
-fastapi_example.egg-info/top_level.txt
-tests/test_main.py
