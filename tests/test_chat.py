@@ -93,19 +93,14 @@ def test_message_broadcast_two_clients(client: TestClient):
         assert message_from_user1 == f"{user1.username}: Hello from User1"
 
         # User1 should NOT receive its own message (standard broadcast logic)
-        with pytest.raises(asyncio.TimeoutError): # Or other appropriate exception for no message
-             # TestClient's receive_text doesn't have an explicit timeout argument like this.
-             # It uses a default short timeout. If no message, it will raise after that.
-             # Let's assume it will raise some form of timeout or connection closed if no message.
-             # The `receive_text()` will raise `fastapi.websockets.WebSocketDisconnect` or similar if timeout.
-             # For `TestClient`, if no message is available, it will eventually time out internally.
-             # A more robust way is to check for a short period.
-             # User1 should not receive their own message.
-             # receive_text() will raise WebSocketDisconnect if no message is received within the timeout (default 1s).
-             with pytest.raises(WebSocketDisconnect):
-                 websocket1.receive_text()
+        # User1 should not receive their own message.
+        # First, check for asyncio.TimeoutError if no message is received within the timeout.
+        with pytest.raises(asyncio.TimeoutError):
+            websocket1.receive_text()
 
-
+        # Then, check for WebSocketDisconnect if the connection is closed unexpectedly.
+        with pytest.raises(WebSocketDisconnect):
+            websocket1.receive_text()
 def test_user_leaves_notification(client: TestClient):
     user_leaver = get_or_create_test_user(username="leaver_user", email="leaver@example.com")
     user_observer = get_or_create_test_user(username="observer_user", email="observer@example.com")
