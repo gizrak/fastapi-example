@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>User Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f9f9f9; color: #333; }
+        .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .header-bar h1 {
+            margin: 0;
+            font-size: 1.8em;
+            text-align: left;
+        }
+        .logout-button {
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+        .logout-button:hover {
+            background-color: #5a6268;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin-bottom: 25px;
+        }
+
+        h2 { color: #333; text-align: center; }
+
+        #userListContainer table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #userListContainer th, #userListContainer td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        #userListContainer th { background-color: #f0f0f0; }
+        #userListContainer tr:nth-child(even) { background-color: #f9f9f9; }
+        .form-section { margin-top: 30px; padding: 20px; border: 1px solid #eee; border-radius: 8px; background-color: #fff; }
+        .form-section h2 { text-align: left; margin-bottom: 15px; font-size: 1.2em; }
+        .form-section label { display: block; margin-bottom: 6px; font-weight: bold; }
+        .form-section input[type="text"],
+        .form-section input[type="email"],
+        .form-section input[type="password"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-section button {
+            color: white; padding: 12px 18px; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 16px;
+            transition: background-color 0.3s; margin-right: 10px;
+        }
+        .form-section button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .edit-btn:disabled, .delete-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #submitBtn { background-color: #28a745; }
+        #submitBtn:hover:not(:disabled) { background-color: #218838; }
+        #cancelEditBtn { background-color: #6c757d; }
+        #cancelEditBtn:hover:not(:disabled) { background-color: #5a6268; }
+
+        .edit-btn { background-color: #007bff; }
+        .edit-btn:hover:not(:disabled) { background-color: #0056b3; }
+        .delete-btn { background-color: #dc3545; }
+        .delete-btn:hover:not(:disabled) { background-color: #c82333; }
+
+        @media (max-width: 768px) {
+            .container { margin: 10px; padding: 15px; }
+            .header-bar h1 { font-size: 1.5em; }
+            .logout-button { font-size: 0.9em; padding: 8px 12px; }
+
+            .form-section input[type="text"],
+            .form-section input[type="email"],
+            .form-section input[type="password"],
+            .form-section button { font-size: 16px; }
+
+            #userListContainer th,
+            #userListContainer td { padding: 8px; font-size: 14px; word-break: break-all; }
+
+            .edit-btn, .delete-btn { padding: 7px 10px; font-size: 13px; margin-bottom: 5px; display: inline-block; }
+
+            #userListContainer td:last-child { text-align: center; }
+            .form-section h2 { font-size: 1.1em; }
+        }
+
+        @media (max-width: 480px) {
+            body { margin: 0; }
+            .container { margin: 0; padding: 10px; border-radius: 0; box-shadow: none; }
+            .header-bar { flex-direction: column; align-items: flex-start; }
+            .header-bar h1 { font-size: 1.3em; margin-bottom:10px; }
+            .logout-button { width:100%; text-align:center; padding:10px; font-size:1em; }
+
+            h2 { font-size: 1.1em; }
+            .form-section h2 { font-size: 1.0em; }
+
+            #userListContainer th,
+            #userListContainer td { font-size: 12px; padding: 6px; }
+            #userListContainer td:last-child .edit-btn,
+            #userListContainer td:last-child .delete-btn {
+                display: block; width: calc(100% - 10px);
+                margin-left:auto; margin-right:auto; margin-bottom: 5px;
+            }
+            #userListContainer td:last-child .delete-btn{ margin-bottom: 0; }
+
+            .form-section input[type="text"],
+            .form-section input[type="email"],
+            .form-section input[type="password"] { padding: 12px; }
+            .form-section button { padding: 12px 15px; width: 100%; margin-bottom:10px; margin-right:0; }
+            #cancelEditBtn{ margin-bottom:0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-bar">
+            <h1>User Management</h1>
+            <button id="logoutBtn" class="logout-button">Logout</button>
+        </div>
+        <hr>
+
+        <div class="form-section">
+            <h2 id="formTitle">Add New User</h2>
+            <input type="hidden" id="editingUserIdHidden">
+
+            <label for="newUsername">Username:</label>
+            <input type="text" id="newUsername" required>
+
+            <label for="newEmail">Email:</label>
+            <input type="email" id="newEmail" required>
+
+            <label for="newPassword">Password:</label>
+            <input type="password" id="newPassword">
+            <small id="passwordHelp">Leave blank if not changing for existing user.</small><br><br>
+
+            <button id="submitBtn">Create User</button>
+            <button id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+        </div>
+
+        <div id="userListContainer">
+            <h2>Application Users</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- User rows will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const userListTableBody = document.querySelector("#userListContainer table tbody");
+        const newUsernameInput = document.getElementById("newUsername");
+        const newEmailInput = document.getElementById("newEmail");
+        const newPasswordInput = document.getElementById("newPassword");
+        const passwordHelpText = document.getElementById("passwordHelp");
+        const submitBtn = document.getElementById("submitBtn");
+        const cancelEditBtn = document.getElementById("cancelEditBtn");
+        const formTitle = document.getElementById("formTitle");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        let editingUserId = null;
+
+        // Helper function to format error details
+        function formatErrorDetail(detail) {
+            if (Array.isArray(detail)) {
+                return detail.map(err => `${err.loc ? err.loc.join('.') + ': ' : ''}${err.msg}`).join('\n');
+            }
+            if (typeof detail === 'string') {
+                return detail;
+            }
+            return "Unknown error format.";
+        }
+
+        // Check authentication status on page load
+        function checkAuth() {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                console.log('No token found, redirecting to login.');
+                window.location.replace('/static/index.html');
+            } else {
+                fetchUsers();
+            }
+        }
+
+        // Fetch all users from the backend
+        async function fetchUsers() {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                window.location.replace('/static/index.html');
+                return;
+            }
+            try {
+                const response = await fetch('/users/', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401) {
+                    console.error('Unauthorized. Redirecting to login.');
+                    localStorage.removeItem('jwtToken');
+                    window.location.replace('/static/index.html');
+                    return;
+                }
+                // Try to parse error response for other error codes
+                if (!response.ok) {
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg += `\nDetails: ${formatErrorDetail(errorData.detail)}`;
+                    } catch (e) { /* Ignore if error response is not JSON */ }
+                    throw new Error(errorMsg);
+                }
+                const users = await response.json();
+                renderUsers(users);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                alert(`Failed to fetch users. ${error.message}`);
+            }
+        }
+
+        // Render users in the table
+        function renderUsers(users) {
+            userListTableBody.innerHTML = ''; // Clear existing rows
+            if (!users || users.length === 0) {
+                const row = userListTableBody.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 4;
+                cell.textContent = 'No users found.';
+                cell.style.textAlign = 'center';
+                return;
+            }
+            users.forEach(user => {
+                const row = userListTableBody.insertRow();
+                row.insertCell().textContent = user.id;
+                row.insertCell().textContent = user.username;
+                row.insertCell().textContent = user.email;
+
+                const actionsCell = row.insertCell();
+                const editButton = document.createElement('button');
+                editButton.classList.add('edit-btn');
+                editButton.textContent = 'Edit';
+                editButton.onclick = (event) => {
+                    event.target.disabled = true; // Disable button on click
+                    startEditUser(user.id, user.username, user.email);
+                    // Button will be re-enabled implicitly if edit is cancelled OR by re-render
+                };
+                actionsCell.appendChild(editButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.classList.add('delete-btn');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = (event) => {
+                    event.target.disabled = true; // Disable button on click
+                    confirmDeleteUser(user.id, event.target); // Pass button to re-enable if cancelled
+                };
+                actionsCell.appendChild(deleteButton);
+            });
+        }
+
+        // Prepare form for editing a user
+        function startEditUser(userId, currentUsername, currentEmail) {
+            editingUserId = userId;
+            newUsernameInput.value = currentUsername;
+            newEmailInput.value = currentEmail;
+            newPasswordInput.value = '';
+            newPasswordInput.placeholder = "Leave blank to keep current password";
+            passwordHelpText.style.display = 'block';
+
+            formTitle.textContent = "Edit User";
+            submitBtn.textContent = "Update User";
+            cancelEditBtn.style.display = "inline-block";
+            // Ensure edit buttons in table are re-enabled if another was clicked
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.disabled = false);
+        }
+
+        // Reset form to "Add User" mode
+        function cancelEdit() {
+            editingUserId = null;
+            newUsernameInput.value = '';
+            newEmailInput.value = '';
+            newPasswordInput.value = '';
+            newPasswordInput.placeholder = "";
+            passwordHelpText.style.display = 'none';
+
+            formTitle.textContent = "Add New User";
+            submitBtn.textContent = "Create User";
+            cancelEditBtn.style.display = "none";
+            submitBtn.disabled = false; // Re-enable submit button
+            // Re-enable any disabled edit buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.disabled = false);
+        }
+
+        // Handle form submission for both create and update
+        async function handleFormSubmit() {
+            submitBtn.disabled = true;
+            cancelEditBtn.disabled = true;
+            try {
+                if (editingUserId) {
+                    await updateUserInternal(editingUserId);
+                } else {
+                    await createUserInternal();
+                }
+            } finally {
+                // Re-enable buttons unless a redirect happened or form is reset by success
+                if (editingUserId) { // If still in edit mode (i.e. update failed but didn't redirect)
+                    submitBtn.disabled = false;
+                    cancelEditBtn.disabled = false;
+                } else if (!submitBtn.disabled) { // If create mode and not already handled by cancelEdit
+                     submitBtn.disabled = false;
+                }
+                 // cancelEdit() called on success handles re-enabling for successful operations
+            }
+        }
+
+        // Create a new user
+        async function createUserInternal() {
+            const token = localStorage.getItem('jwtToken');
+            const username = newUsernameInput.value.trim();
+            const email = newEmailInput.value.trim();
+            const password = newPasswordInput.value.trim();
+
+            if (!username || !email || !password) {
+                alert('Please fill in all fields: Username, Email, and Password for new user.');
+                submitBtn.disabled = false; cancelEditBtn.disabled = false; // Re-enable form buttons
+                return;
+            }
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                alert('Please enter a valid email address.');
+                submitBtn.disabled = false; cancelEditBtn.disabled = false; // Re-enable form buttons
+                return;
+            }
+
+            try {
+                const response = await fetch('/users/', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const responseData = await response.json();
+                if (!response.ok) {
+                    alert(`Error creating user: ${formatErrorDetail(responseData.detail) || `HTTP error! status: ${response.status}`}`);
+                    throw new Error(formatErrorDetail(responseData.detail));
+                }
+                alert('User created successfully!');
+                cancelEdit(); // Resets form, re-enables buttons
+                fetchUsers();
+            } catch (error) {
+                console.error('Error creating user:', error);
+                // Buttons re-enabled in finally block of handleFormSubmit if error wasn't caught by alert return
+                submitBtn.disabled = false;
+                // cancelEditBtn is hidden in create mode, so no need to re-enable explicitly here
+            }
+        }
+
+        // Update an existing user
+        async function updateUserInternal(userId) {
+            const token = localStorage.getItem('jwtToken');
+            const username = newUsernameInput.value.trim();
+            const email = newEmailInput.value.trim();
+            const password = newPasswordInput.value.trim();
+
+            if (!username || !email) {
+                alert('Username and Email cannot be empty.');
+                submitBtn.disabled = false; cancelEditBtn.disabled = false; // Re-enable form buttons
+                return;
+            }
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                alert('Please enter a valid email address.');
+                submitBtn.disabled = false; cancelEditBtn.disabled = false; // Re-enable form buttons
+                return;
+            }
+
+            const payload = { username, email };
+            if (password) { payload.password = password; }
+
+            try {
+                const response = await fetch(`/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const responseData = await response.json();
+                if (!response.ok) {
+                    alert(`Error updating user: ${formatErrorDetail(responseData.detail) || `HTTP error! status: ${response.status}`}`);
+                    throw new Error(formatErrorDetail(responseData.detail));
+                }
+                alert('User updated successfully!');
+                cancelEdit(); // Resets form, re-enables buttons
+                fetchUsers();
+            } catch (error) {
+                console.error('Error updating user:', error);
+                // Buttons re-enabled in finally block of handleFormSubmit
+                 submitBtn.disabled = false; cancelEditBtn.disabled = false;
+            }
+        }
+
+        // Confirm before deleting a user
+        function confirmDeleteUser(userId, deleteButtonElement) {
+            if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                deleteUser(userId, deleteButtonElement);
+            } else {
+                if (deleteButtonElement) deleteButtonElement.disabled = false; // Re-enable if cancelled
+            }
+        }
+
+        // Delete a user
+        async function deleteUser(userId, deleteButtonElement) {
+            const token = localStorage.getItem('jwtToken');
+            try {
+                const response = await fetch(`/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401) {
+                    alert('Session expired. Please login again.');
+                    localStorage.removeItem('jwtToken');
+                    window.location.replace('/static/index.html');
+                    return; // Stop execution
+                }
+                if (!response.ok) {
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg += `\nDetails: ${formatErrorDetail(errorData.detail)}`;
+                    } catch (e) { /* Ignore if error response is not JSON */ }
+                    throw new Error(errorMsg);
+                }
+                alert('User deleted successfully!');
+                fetchUsers(); // Refreshes list, which will recreate buttons (so no need to re-enable here)
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert(`Failed to delete user: ${error.message}`);
+                if (deleteButtonElement) deleteButtonElement.disabled = false; // Re-enable on error
+            }
+        }
+
+        // Logout user
+        function logoutUser() {
+            logoutBtn.disabled = true; // Disable logout button
+            localStorage.removeItem('jwtToken');
+            console.log('User logged out, token removed.');
+            window.location.replace('/static/index.html');
+        }
+
+        // Attach event listeners
+        submitBtn.addEventListener('click', handleFormSubmit);
+        cancelEditBtn.addEventListener('click', cancelEdit);
+        logoutBtn.addEventListener('click', logoutUser);
+
+        // Initial actions on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            passwordHelpText.style.display = 'none';
+            checkAuth();
+        });
+    </script>
+</body>
+</html>

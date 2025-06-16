@@ -4,8 +4,9 @@ from typing import List, Union
 
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr, field_validator
-from fastapi.responses import RedirectResponse, HTMLResponse # Add HTMLResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -109,6 +110,9 @@ async def get_or_create_user(email: str, username: str):
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # In-memory list to store users
 users_db: List["User"] = [] # Use forward reference for User
 next_user_id = 1
@@ -143,8 +147,7 @@ class UserCreate(BaseModel):
 
 @app.get("/")
 async def read_root():
-    await asyncio.sleep(0.001)
-    return {"Hello": "World"}
+    return FileResponse("static/index.html")
 
 
 @app.post("/users/", response_model=User)
