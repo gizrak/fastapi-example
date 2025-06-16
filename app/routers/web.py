@@ -170,7 +170,7 @@ async def main_page(request: Request, current_user: User = Depends(get_current_u
 
     # For consistency with read_root, ensure index.html gets all expected context.
     return templates.TemplateResponse(
-        "index.html",
+        "index.html.j2",
         {
             "request": request,
             "user": current_user,
