@@ -1,38 +1,564 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Main Page</title>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>사용자 관리 시스템</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { color: #0056b3; }
-        .user-info p { margin: 5px 0; }
-        .user-info strong { color: #0056b3; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to the Application!</h1>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        {% if user %}
-            <div class="user-info">
-                <h2>User Information:</h2>
-                <p><strong>Username:</strong> {{ user.username }}</p>
-                <p><strong>Email:</strong> {{ user.email }}</p>
-                {% if user.id == 0 and user.username == "mockuser" %}
-                    <p><small>(This is a mock user view because authentication is currently disabled.)</small></p>
-                {% endif %}
-            </div>
-            <form action="/logout" method="post" style="margin-top: 20px;">
-                <button type="submit">Logout</button>
-            </form>
-        {% else %}
-            <p>You are not logged in. <a href="/login">Login</a></p>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 300;
+      }
+
+      .header p {
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 40px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      .section h2 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 1.8em;
+        font-weight: 400;
+      }
+
+      .user-form {
+        background: #f8f9fa;
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        flex: 1;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 500;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        font-weight: 500;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn-small {
+        padding: 8px 16px;
+        font-size: 14px;
+        margin: 0 5px;
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      }
+
+      .btn-warning {
+        background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
+      }
+
+      .users-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .user-card {
+        background: white;
+        border: 2px solid #e1e5e9;
+        border-radius: 15px;
+        padding: 25px;
+        transition: all 0.3s ease;
+      }
+
+      .user-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border-color: #667eea;
+      }
+
+      .user-card h3 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+      }
+
+      .user-info {
+        margin-bottom: 20px;
+      }
+
+      .user-info p {
+        margin-bottom: 8px;
+        color: #666;
+      }
+
+      .user-info strong {
+        color: #333;
+      }
+
+      .user-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .no-users {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-size: 1.2em;
+      }
+
+      .auth-notice {
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #1976d2;
+      }
+
+      .refresh-btn {
+        margin-bottom: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .form-row {
+          flex-direction: column;
+        }
+
+        .users-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .user-actions {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🚀 사용자 관리 시스템</h1>
+        <p>FastAPI를 이용한 현대적인 사용자 관리 인터페이스</p>
+      </div>
+
+      <div class="content">
+        {% if not auth_enabled %}
+        <div class="auth-notice">
+          <strong>알림:</strong> 현재 인증이 비활성화되어 있습니다. 모든 기능을
+          자유롭게 사용할 수 있습니다.
+        </div>
         {% endif %}
+
+        <!-- 사용자 생성 폼 -->
+        <div class="section">
+          <h2>새 사용자 추가</h2>
+          <div class="user-form">
+            <form id="createUserForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="username">사용자명</label>
+                  <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    minlength="3"
+                    maxlength="50"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="email">이메일</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="example@domain.com"
+                  />
+                  <small style="color: #666; font-size: 0.9em"
+                    >올바른 이메일 형식을 입력해주세요 (예:
+                    user@example.com)</small
+                  >
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="password">비밀번호 (선택사항)</label>
+                  <input type="password" id="password" name="password" />
+                </div>
+              </div>
+              <button type="submit" class="btn">사용자 추가</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 사용자 목록 -->
+        <div class="section">
+          <h2>등록된 사용자 목록</h2>
+          <button onclick="refreshUsers()" class="btn refresh-btn">
+            🔄 목록 새로고침
+          </button>
+
+          <div id="usersContainer">
+            {% if users %}
+            <div class="users-grid">
+              {% for user in users %}
+              <div class="user-card" data-user-id="{{ user.id }}">
+                <h3>👤 {{ user.username }}</h3>
+                <div class="user-info">
+                  <p><strong>ID:</strong> {{ user.id }}</p>
+                  <p><strong>이메일:</strong> {{ user.email }}</p>
+                  <p>
+                    <strong>비밀번호 설정:</strong> {{ "예" if
+                    user.hashed_password else "아니오" }}
+                  </p>
+                </div>
+                <div class="user-actions">
+                  <button
+                    class="btn btn-small btn-warning edit-user-btn"
+                    data-user-id="{{ user.id }}"
+                    data-username="{{ user.username }}"
+                    data-email="{{ user.email }}"
+                  >
+                    수정
+                  </button>
+                  <button
+                    class="btn btn-small btn-danger delete-user-btn"
+                    data-user-id="{{ user.id }}"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="no-users">
+              <p>아직 등록된 사용자가 없습니다.</p>
+              <p>위의 폼을 사용하여 첫 번째 사용자를 추가해보세요!</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </div>
-</body>
+
+    <script>
+      // 사용자 생성
+      document
+        .getElementById("createUserForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(e.target);
+          const userData = {
+            username: formData.get("username"),
+            email: formData.get("email"),
+            password: formData.get("password") || null,
+          };
+
+          // 클라이언트 측 이메일 유효성 검사
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(userData.email)) {
+            alert("올바른 이메일 형식을 입력해주세요.\n예: user@example.com");
+            return;
+          }
+
+          try {
+            const response = await fetch("/users/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(userData),
+            });
+
+            if (response.ok) {
+              alert("사용자가 성공적으로 추가되었습니다!");
+              e.target.reset();
+              refreshUsers();
+            } else {
+              const error = await response.json();
+              let errorMessage = "사용자 생성에 실패했습니다.\n\n";
+
+              if (error.detail) {
+                if (Array.isArray(error.detail)) {
+                  // Pydantic validation errors
+                  errorMessage += error.detail
+                    .map((err) => {
+                      if (
+                        err.type === "value_error" &&
+                        err.loc &&
+                        err.loc.includes("email")
+                      ) {
+                        return "이메일: 올바른 이메일 형식을 입력해주세요 (예: user@example.com)";
+                      }
+                      return `${err.loc ? err.loc.join(".") + ": " : ""}${
+                        err.msg
+                      }`;
+                    })
+                    .join("\n");
+                } else {
+                  errorMessage += error.detail;
+                }
+              } else {
+                errorMessage += JSON.stringify(error, null, 2);
+              }
+
+              alert(errorMessage);
+            }
+          } catch (error) {
+            alert("네트워크 오류가 발생했습니다.");
+            console.error("Error:", error);
+          }
+        });
+
+      // 사용자 목록 새로고침
+      async function refreshUsers() {
+        try {
+          const response = await fetch("/api/users");
+          const users = await response.json();
+
+          const container = document.getElementById("usersContainer");
+
+          if (users.length === 0) {
+            container.innerHTML = `
+                        <div class="no-users">
+                            <p>아직 등록된 사용자가 없습니다.</p>
+                            <p>위의 폼을 사용하여 첫 번째 사용자를 추가해보세요!</p>
+                        </div>
+                    `;
+          } else {
+            const usersHTML = users
+              .map(
+                (user) => `
+                        <div class="user-card" data-user-id="${user.id}">
+                            <h3>👤 ${user.username}</h3>
+                            <div class="user-info">
+                                <p><strong>ID:</strong> ${user.id}</p>
+                                <p><strong>이메일:</strong> ${user.email}</p>
+                                <p><strong>비밀번호 설정:</strong> ${
+                                  user.hashed_password ? "예" : "아니오"
+                                }</p>
+                            </div>
+                            <div class="user-actions">
+                                <button class="btn btn-small btn-warning edit-user-btn" 
+                                        data-user-id="${user.id}" 
+                                        data-username="${user.username}" 
+                                        data-email="${user.email}">수정</button>
+                                <button class="btn btn-small btn-danger delete-user-btn" 
+                                        data-user-id="${user.id}">삭제</button>
+                            </div>
+                        </div>
+                    `
+              )
+              .join("");
+
+            container.innerHTML = `<div class="users-grid">${usersHTML}</div>`;
+
+            // Add event listeners to the new buttons
+            bindUserActionListeners();
+          }
+        } catch (error) {
+          alert("사용자 목록을 불러오는데 실패했습니다.");
+          console.error("Error:", error);
+        }
+      }
+
+      // Bind event listeners to user action buttons
+      function bindUserActionListeners() {
+        // Edit user buttons
+        document.querySelectorAll(".edit-user-btn").forEach((button) => {
+          button.addEventListener("click", function () {
+            const id = this.dataset.userId;
+            const username = this.dataset.username;
+            const email = this.dataset.email;
+            editUser(parseInt(id), username, email);
+          });
+        });
+
+        // Delete user buttons
+        document.querySelectorAll(".delete-user-btn").forEach((button) => {
+          button.addEventListener("click", function () {
+            const id = this.dataset.userId;
+            deleteUser(parseInt(id));
+          });
+        });
+      }
+
+      // 사용자 수정
+      function editUser(id, username, email) {
+        const newUsername = prompt("새 사용자명을 입력하세요:", username);
+        if (!newUsername) return;
+
+        const newEmail = prompt(
+          "새 이메일을 입력하세요 (예: user@example.com):",
+          email
+        );
+        if (!newEmail) return;
+
+        // 간단한 이메일 형식 검증
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+          alert("올바른 이메일 형식을 입력해주세요.\n예: user@example.com");
+          return;
+        }
+
+        updateUser(id, newUsername, newEmail);
+      }
+
+      async function updateUser(id, username, email) {
+        try {
+          const response = await fetch(`/users/${id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username: username,
+              email: email,
+            }),
+          });
+
+          if (response.ok) {
+            alert("사용자 정보가 성공적으로 수정되었습니다!");
+            refreshUsers();
+          } else {
+            const error = await response.json();
+            let errorMessage = "사용자 수정에 실패했습니다.\n\n";
+
+            if (error.detail) {
+              if (Array.isArray(error.detail)) {
+                // Pydantic validation errors
+                errorMessage += error.detail
+                  .map((err) => {
+                    if (
+                      err.type === "value_error" &&
+                      err.loc &&
+                      err.loc.includes("email")
+                    ) {
+                      return "이메일: 올바른 이메일 형식을 입력해주세요 (예: user@example.com)";
+                    }
+                    return `${err.loc ? err.loc.join(".") + ": " : ""}${
+                      err.msg
+                    }`;
+                  })
+                  .join("\n");
+              } else {
+                errorMessage += error.detail;
+              }
+            } else {
+              errorMessage += JSON.stringify(error, null, 2);
+            }
+
+            alert(errorMessage);
+          }
+        } catch (error) {
+          alert("네트워크 오류가 발생했습니다.");
+          console.error("Error:", error);
+        }
+      }
+
+      // 사용자 삭제
+      async function deleteUser(id) {
+        if (confirm("정말로 이 사용자를 삭제하시겠습니까?")) {
+          try {
+            const response = await fetch(`/users/${id}`, {
+              method: "DELETE",
+            });
+
+            if (response.ok) {
+              alert("사용자가 성공적으로 삭제되었습니다!");
+              refreshUsers();
+            } else {
+              const error = await response.json();
+              alert("오류: " + (error.detail || "사용자 삭제에 실패했습니다."));
+            }
+          } catch (error) {
+            alert("네트워크 오류가 발생했습니다.");
+            console.error("Error:", error);
+          }
+        }
+      }
+
+      // Initialize event listeners when page loads
+      document.addEventListener("DOMContentLoaded", function () {
+        bindUserActionListeners();
+      });
+    </script>
+  </body>
 </html>
