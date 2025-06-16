@@ -278,6 +278,175 @@
           flex-direction: column;
         }
       }
+
+      /* Chat Styles */
+      .chat-icon-container {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        transition: transform 0.3s ease;
+      }
+
+      .chat-icon-container:hover {
+        transform: scale(1.1);
+      }
+
+      .chat-icon-svg {
+        width: 30px;
+        height: 30px;
+        fill: white;
+      }
+
+      .chat-notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background-color: #ff3b5c;
+        color: white;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      }
+
+      .chat-window {
+        position: fixed;
+        bottom: 100px;
+        right: 30px;
+        width: 370px;
+        max-height: 500px;
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 999;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 0;
+        transform: translateY(20px);
+        visibility: hidden;
+      }
+
+      .chat-window.visible {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+      }
+
+      .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 1.1em;
+      }
+
+      .chat-header-title {
+        font-weight: 500;
+      }
+
+      .chat-close-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s ease;
+      }
+      .chat-close-btn:hover {
+        opacity: 1;
+      }
+
+      .chat-messages {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+        min-height: 200px; /* Ensure a minimum height */
+      }
+
+      .chat-message {
+        margin-bottom: 15px;
+        line-height: 1.4;
+      }
+
+      .chat-message .sender {
+        font-weight: bold;
+        color: #667eea; /* Theme color for sender */
+        margin-bottom: 3px;
+        display: block;
+      }
+      .chat-message .sender.me {
+        color: #764ba2; /* Different color for "Me" */
+      }
+
+      .chat-message .text {
+        background-color: #e9ecef;
+        padding: 8px 12px;
+        border-radius: 10px;
+        display: inline-block;
+        max-width: 90%;
+        word-wrap: break-word;
+      }
+
+      .chat-message.my-message .text {
+        background-color: #d1d8ff; /* Light purple for my messages */
+      }
+
+
+      .chat-input-area {
+        padding: 15px;
+        background-color: #fff;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 10px;
+      }
+
+      .chat-message-input {
+        flex-grow: 1;
+        padding: 10px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 15px;
+      }
+      .chat-message-input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .chat-send-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0 20px;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+      }
+      .chat-send-btn:hover {
+        opacity: 0.9;
+      }
+
     </style>
   </head>
   <body>
@@ -330,7 +499,34 @@
             >여기를 클릭하여 로그인</a
           >
         </div>
-        {% endif %} {% if not auth_enabled or user %}
+        {% endif %}
+
+        {% if auth_enabled and user %}
+        <!-- Chat UI Elements -->
+        <div id="chat-icon-container">
+            <svg class="chat-icon-svg" viewBox="0 0 24 24">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>
+            <span id="chat-notification-badge" style="display: none;">0</span>
+        </div>
+
+        <div id="chat-window">
+            <div class="chat-header">
+                <span class="chat-header-title">Chat - {{ user.username }}</span>
+                <button id="chat-close-btn">&times;</button>
+            </div>
+            <div class="chat-messages" id="chat-messages-area">
+                <!-- Messages will appear here -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-message-input" placeholder="Type a message..." />
+                <button id="chat-send-btn">Send</button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not auth_enabled or user %}
         <!-- 사용자 생성 폼 -->
         <div class="section">
           <h2>새 사용자 추가</h2>
@@ -688,6 +884,162 @@
       // Initialize event listeners when page loads
       document.addEventListener("DOMContentLoaded", function () {
         bindUserActionListeners();
+
+        // Chat functionality initialization
+        // This will be wrapped with {% if auth_enabled and user %} in the actual script block
+        // For now, this structure assumes the necessary user data is available if this part of script runs.
+
+        const chatIcon = document.getElementById('chat-icon-container');
+        const chatWindow = document.getElementById('chat-window');
+        const closeChatBtn = document.getElementById('chat-close-btn');
+        const messageInput = document.getElementById('chat-message-input');
+        const sendChatBtn = document.getElementById('chat-send-btn');
+        const messagesArea = document.getElementById('chat-messages-area');
+        const notificationBadge = document.getElementById('chat-notification-badge');
+
+        // These would be dynamically set by the template, e.g.
+        // const IS_AUTH_ENABLED = {{ auth_enabled|tojson }};
+        // const CURRENT_USER = {{ user|tojson if user else 'null' }};
+        // const USER_TOKEN = "{{ user_token_placeholder }}"; // Placeholder for actual token
+
+        // Mocking these for structural development, real values must be injected by template
+        // For example, if these elements don't exist because user is not logged in, the script will stop here.
+        if (!chatIcon) {
+          console.log("Chat UI not found, user likely not logged in or auth disabled.");
+          return;
+        }
+
+        // Assume USER_NAME and USER_TOKEN are made available globally by the template if user is logged in
+        // Example: <script> const USER_NAME = "{{user.username}}"; const USER_TOKEN = "{{token_for_js}}"; </script>
+        // This is a CRITICAL assumption. If token is not available, WebSocket connection cannot be made as specified.
+
+        // Placeholder for real token and username - these MUST be injected by the backend into the template
+        const currentUserName = "{{ user.username if user else 'Guest' }}";
+        const wsToken = "{{ access_token_for_js if user and auth_enabled else '' }}"; // This needs to be passed from server
+
+        if (!wsToken) {
+            console.warn("Chat: User token not available. WebSocket cannot connect.");
+            // Hide chat icon if token is missing, effectively disabling chat
+            if (chatIcon) chatIcon.style.display = 'none';
+            return;
+        }
+
+        let websocket = null;
+        let unreadMessages = 0;
+
+        function updateNotificationBadge() {
+            if (unreadMessages > 0 && chatWindow && !chatWindow.classList.contains('visible')) {
+                notificationBadge.textContent = unreadMessages > 9 ? '9+' : unreadMessages;
+                notificationBadge.style.display = 'flex';
+            } else {
+                notificationBadge.style.display = 'none';
+            }
+        }
+
+        function addMessageToUI(message, sender, isMe) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message');
+            if (isMe) {
+                messageElement.classList.add('my-message');
+            }
+
+            const senderElement = document.createElement('span');
+            senderElement.classList.add('sender');
+            senderElement.textContent = isMe ? 'Me' : sender;
+            if(isMe) senderElement.classList.add('me');
+
+
+            const textElement = document.createElement('div');
+            textElement.classList.add('text');
+            textElement.textContent = message;
+
+            messageElement.appendChild(senderElement);
+            messageElement.appendChild(textElement);
+            messagesArea.appendChild(messageElement);
+            messagesArea.scrollTop = messagesArea.scrollHeight; // Scroll to bottom
+        }
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = window.location.host;
+            const wsUrl = `${wsProtocol}//${wsHost}/ws/${wsToken}`;
+
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = () => {
+                console.log('Chat WebSocket connected');
+                // You could send a join message or fetch history here if implemented
+            };
+
+            websocket.onmessage = (event) => {
+                const messageData = event.data; // Assuming "username: message"
+                const parts = messageData.split(': ');
+                const sender = parts.length > 1 ? parts[0] : 'Server';
+                const messageText = parts.length > 1 ? parts.slice(1).join(': ') : messageData;
+
+                addMessageToUI(messageText, sender, sender === currentUserName);
+
+                if (!chatWindow.classList.contains('visible')) {
+                    unreadMessages++;
+                    updateNotificationBadge();
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+                addMessageToUI('Error connecting to chat.', 'System', false);
+            };
+
+            websocket.onclose = () => {
+                console.log('WebSocket disconnected. Attempting to reconnect...');
+                addMessageToUI('Disconnected from chat. Attempting to reconnect...', 'System', false);
+                // Simple reconnect logic, could be more robust (e.g., backoff)
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        chatIcon.addEventListener('click', () => {
+            chatWindow.classList.toggle('visible');
+            if (chatWindow.classList.contains('visible')) {
+                unreadMessages = 0;
+                updateNotificationBadge();
+                messageInput.focus();
+            }
+        });
+
+        closeChatBtn.addEventListener('click', () => {
+            chatWindow.classList.remove('visible');
+            updateNotificationBadge(); // Badge should re-appear if messages came in while open
+        });
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && websocket && websocket.readyState === WebSocket.OPEN) {
+                // The server expects "username: message" but it adds the username itself.
+                // So client just sends the raw message.
+                // The broadcast format is `f"{user.username}: {data}"`
+                // The ConnectionManager.broadcast prepends the username.
+                websocket.send(message);
+                // Add local echo of the message
+                addMessageToUI(message, currentUserName, true);
+                messageInput.value = '';
+            } else if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                addMessageToUI('Not connected to chat. Attempting to send later or please wait.', 'System', false);
+            }
+        }
+
+        sendChatBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize WebSocket connection if user is logged in and token is present
+        connectWebSocket();
+        // Initial badge update (should be 0)
+        updateNotificationBadge();
+
       });
     </script>
   </body>

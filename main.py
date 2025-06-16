@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from app.routers import web
+from app.routers import web, chat
 from app.routers.api.v1 import users
 
 # Load environment variables from .env file
@@ -16,6 +16,7 @@ app = FastAPI(
 # Include routers
 app.include_router(web.router)  # Web pages (excluded from docs)
 app.include_router(users.router)  # API endpoints (included in docs)
+app.include_router(chat.router)  # Chat WebSocket endpoints
 
 
 if __name__ == "__main__":
