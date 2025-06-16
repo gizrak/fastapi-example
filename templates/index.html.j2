@@ -886,8 +886,8 @@
         bindUserActionListeners();
 
         // Chat functionality initialization
-        // This will be wrapped with {% if auth_enabled and user %} in the actual script block
-        // For now, this structure assumes the necessary user data is available if this part of script runs.
+        {% if auth_enabled and user %}
+        // This structure assumes the necessary user data is available if this part of script runs.
 
         const chatIcon = document.getElementById('chat-icon-container');
         const chatWindow = document.getElementById('chat-window');
@@ -897,10 +897,10 @@
         const messagesArea = document.getElementById('chat-messages-area');
         const notificationBadge = document.getElementById('chat-notification-badge');
 
-        // These would be dynamically set by the template, e.g.
-        // const IS_AUTH_ENABLED = {{ auth_enabled|tojson }};
-        // const CURRENT_USER = {{ user|tojson if user else 'null' }};
-        // const USER_TOKEN = "{{ user_token_placeholder }}"; // Placeholder for actual token
+        // These would be dynamically set by the template if needed in the future
+        // const IS_AUTH_ENABLED = auth_enabled_value;
+        // const CURRENT_USER = user_data_object;
+        // const USER_TOKEN = "user_token_placeholder"; // Placeholder for actual token
 
         // Mocking these for structural development, real values must be injected by template
         // For example, if these elements don't exist because user is not logged in, the script will stop here.
@@ -910,12 +910,12 @@
         }
 
         // Assume USER_NAME and USER_TOKEN are made available globally by the template if user is logged in
-        // Example: <script> const USER_NAME = "{{user.username}}"; const USER_TOKEN = "{{token_for_js}}"; </script>
+        // Example: const USER_NAME = "{{user.username}}"; const USER_TOKEN = "{{token_for_js}}";
         // This is a CRITICAL assumption. If token is not available, WebSocket connection cannot be made as specified.
 
         // Placeholder for real token and username - these MUST be injected by the backend into the template
         const currentUserName = "{{ user.username if user else 'Guest' }}";
-        const wsToken = "{{ access_token_for_js if user and auth_enabled else '' }}"; // This needs to be passed from server
+        const wsToken = "{{ access_token_for_js if access_token_for_js else '' }}"; // This needs to be passed from server
 
         if (!wsToken) {
             console.warn("Chat: User token not available. WebSocket cannot connect.");
@@ -1039,6 +1039,7 @@
         connectWebSocket();
         // Initial badge update (should be 0)
         updateNotificationBadge();
+        {% endif %}
 
       });
     </script>
