@@ -23,7 +23,7 @@
                 <h2>User Information:</h2>
                 <p><strong>Username:</strong> {{ user.username }}</p>
                 <p><strong>Email:</strong> {{ user.email }}</p>
-                {% if user.id == MOCK_USER_ID and user.username == MOCK_USERNAME %}
+                {% if user.id == 0 and user.username == "mockuser" %}
                     <p><small>(This is a mock user view because authentication is currently disabled.)</small></p>
                 {% endif %}
             </div>

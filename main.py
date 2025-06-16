@@ -4,9 +4,8 @@ from typing import List, Union
 
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr, field_validator
-from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse # Add HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -110,9 +109,6 @@ async def get_or_create_user(email: str, username: str):
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# Mount static files directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # In-memory list to store users
 users_db: List["User"] = [] # Use forward reference for User
 next_user_id = 1
@@ -147,7 +143,8 @@ class UserCreate(BaseModel):
 
 @app.get("/")
 async def read_root():
-    return FileResponse("static/index.html")
+    await asyncio.sleep(0.001)
+    return {"Hello": "World"}
 
 
 @app.post("/users/", response_model=User)
@@ -279,7 +276,7 @@ async def callback(code: str = None): # Made code optional for the disabled case
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # max_age is in seconds
         expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # also in seconds from now
         samesite="Lax", # Or "Strict"
-        secure=not DEBUG # Dynamically set based on environment
+        secure=False # Should be True in production (HTTPS)
     )
     return redirect_response
 

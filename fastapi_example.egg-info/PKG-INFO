@@ -1,3 +1,13 @@
+Metadata-Version: 2.4
+Name: fastapi-example
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.115.12
+Requires-Dist: httpx>=0.24.0
+Requires-Dist: jinja2>=3.1.0
+
 # fastapi-example
 
 This is a sample FastAPI application demonstrating a User CRUD API.
