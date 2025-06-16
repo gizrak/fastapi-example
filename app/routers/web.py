@@ -68,7 +68,7 @@ async def login():
     )
 
 
-@router.get("/callback")
+@router.get("/oauth/callback")
 async def callback(code: str = None):
     if not AUTH_ENABLED:
         raise HTTPException(status_code=404, detail="Authentication is disabled.")
