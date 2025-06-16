@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
@@ -6,6 +9,10 @@ from app.routers.api.v1 import users
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Create logs directory if it doesn't exist
+logs_dir = Path("logs")
+logs_dir.mkdir(exist_ok=True)
 
 app = FastAPI(
     title="FastAPI Example",
@@ -19,10 +26,9 @@ app.include_router(users.router)  # API endpoints (included in docs)
 app.include_router(chat.router)  # Chat WebSocket endpoints
 
 
-import os
-
 # Debug endpoint to list all routes (only in development mode)
 if os.getenv("DEBUG_MODE") == "true":
+
     @app.get("/debug/routes")
     async def list_routes():
         routes = []
@@ -35,7 +41,9 @@ if os.getenv("DEBUG_MODE") == "true":
                 }
             )
         return routes
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_config="logging.yaml")
