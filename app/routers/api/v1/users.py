@@ -3,8 +3,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import get_current_user, get_password_hash, users_db
-from ..models import User, UserCreate
+from ....auth import get_current_user, get_password_hash, users_db
+from ....models import User, UserCreate
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
@@ -15,7 +15,7 @@ async def create_user(user: UserCreate):
     await asyncio.sleep(0.001)
 
     # Import here to avoid circular imports
-    from ..auth import next_user_id
+    from ....auth import next_user_id
 
     hashed_password = None
     if user.password:
