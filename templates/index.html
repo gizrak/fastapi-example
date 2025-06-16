@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; }
+        .user-info p { margin: 5px 0; }
+        .user-info strong { color: #0056b3; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Application!</h1>
+
+        {% if user %}
+            <div class="user-info">
+                <h2>User Information:</h2>
+                <p><strong>Username:</strong> {{ user.username }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                {% if user.id == 0 and user.username == "mockuser" %}
+                    <p><small>(This is a mock user view because authentication is currently disabled.)</small></p>
+                {% endif %}
+            </div>
+            <form action="/logout" method="post" style="margin-top: 20px;">
+                <button type="submit">Logout</button>
+            </form>
+        {% else %}
+            <p>You are not logged in. <a href="/login">Login</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>
