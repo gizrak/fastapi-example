@@ -279,7 +279,7 @@ async def callback(code: str = None): # Made code optional for the disabled case
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # max_age is in seconds
         expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60, # also in seconds from now
         samesite="Lax", # Or "Strict"
-        secure=False # Should be True in production (HTTPS)
+        secure=not DEBUG # Dynamically set based on environment
     )
     return redirect_response
 
