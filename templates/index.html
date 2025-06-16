@@ -189,6 +189,78 @@
         color: #1976d2;
       }
 
+      .auth-info {
+        background: #e8f5e8;
+        border: 1px solid #4caf50;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #2e7d32;
+      }
+
+      .auth-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+      }
+
+      .user-info-header {
+        color: white;
+      }
+
+      .user-info-header h3 {
+        margin: 0;
+        font-weight: 300;
+      }
+
+      .user-info-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.8;
+      }
+
+      .auth-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .btn-login {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .btn-login:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-2px);
+      }
+
+      .btn-logout {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-logout:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+      }
+
       .refresh-btn {
         margin-bottom: 20px;
       }
@@ -213,6 +285,28 @@
       <div class="header">
         <h1>🚀 사용자 관리 시스템</h1>
         <p>FastAPI를 이용한 현대적인 사용자 관리 인터페이스</p>
+
+        {% if auth_enabled %}
+        <div class="auth-header">
+          {% if user %}
+          <div class="user-info-header">
+            <h3>👋 안녕하세요, {{ user.username }}님!</h3>
+            <p>{{ user.email }}</p>
+          </div>
+          <div class="auth-buttons">
+            <button onclick="logout()" class="btn-logout">로그아웃</button>
+          </div>
+          {% else %}
+          <div class="user-info-header">
+            <h3>로그인이 필요합니다</h3>
+            <p>Google 계정으로 로그인하여 서비스를 이용해보세요</p>
+          </div>
+          <div class="auth-buttons">
+            <a href="/login" class="btn-login">🔐 Google로 로그인</a>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
 
       <div class="content">
@@ -221,8 +315,22 @@
           <strong>알림:</strong> 현재 인증이 비활성화되어 있습니다. 모든 기능을
           자유롭게 사용할 수 있습니다.
         </div>
-        {% endif %}
-
+        {% elif user %}
+        <div class="auth-info">
+          <strong>✅ 로그인 완료:</strong> {{ user.username }}님으로
+          로그인되었습니다. 모든 기능을 사용할 수 있습니다.
+        </div>
+        {% else %}
+        <div class="auth-notice">
+          <strong>🔒 로그인 필요:</strong> 사용자 관리 기능을 사용하려면 Google
+          계정으로 로그인해주세요.
+          <a
+            href="/login"
+            style="color: #1976d2; text-decoration: none; font-weight: bold"
+            >여기를 클릭하여 로그인</a
+          >
+        </div>
+        {% endif %} {% if not auth_enabled or user %}
         <!-- 사용자 생성 폼 -->
         <div class="section">
           <h2>새 사용자 추가</h2>
@@ -276,29 +384,29 @@
           <div id="usersContainer">
             {% if users %}
             <div class="users-grid">
-              {% for user in users %}
-              <div class="user-card" data-user-id="{{ user.id }}">
-                <h3>👤 {{ user.username }}</h3>
+              {% for user_item in users %}
+              <div class="user-card" data-user-id="{{ user_item.id }}">
+                <h3>👤 {{ user_item.username }}</h3>
                 <div class="user-info">
-                  <p><strong>ID:</strong> {{ user.id }}</p>
-                  <p><strong>이메일:</strong> {{ user.email }}</p>
+                  <p><strong>ID:</strong> {{ user_item.id }}</p>
+                  <p><strong>이메일:</strong> {{ user_item.email }}</p>
                   <p>
                     <strong>비밀번호 설정:</strong> {{ "예" if
-                    user.hashed_password else "아니오" }}
+                    user_item.hashed_password else "아니오" }}
                   </p>
                 </div>
                 <div class="user-actions">
                   <button
                     class="btn btn-small btn-warning edit-user-btn"
-                    data-user-id="{{ user.id }}"
-                    data-username="{{ user.username }}"
-                    data-email="{{ user.email }}"
+                    data-user-id="{{ user_item.id }}"
+                    data-username="{{ user_item.username }}"
+                    data-email="{{ user_item.email }}"
                   >
                     수정
                   </button>
                   <button
                     class="btn btn-small btn-danger delete-user-btn"
-                    data-user-id="{{ user.id }}"
+                    data-user-id="{{ user_item.id }}"
                   >
                     삭제
                   </button>
@@ -314,10 +422,32 @@
             {% endif %}
           </div>
         </div>
+        {% endif %}
       </div>
     </div>
 
     <script>
+      // 로그아웃 함수
+      async function logout() {
+        if (confirm("정말로 로그아웃 하시겠습니까?")) {
+          try {
+            const response = await fetch("/logout", {
+              method: "POST",
+            });
+
+            if (response.ok) {
+              // 로그아웃 성공 시 페이지 새로고침
+              window.location.reload();
+            } else {
+              alert("로그아웃에 실패했습니다.");
+            }
+          } catch (error) {
+            console.error("Logout error:", error);
+            alert("로그아웃 중 오류가 발생했습니다.");
+          }
+        }
+      }
+
       // 사용자 생성
       document
         .getElementById("createUserForm")
@@ -339,7 +469,7 @@
           }
 
           try {
-            const response = await fetch("/users/", {
+            const response = await fetch("/api/v1/users/", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -390,7 +520,7 @@
       // 사용자 목록 새로고침
       async function refreshUsers() {
         try {
-          const response = await fetch("/api/users");
+          const response = await fetch("/api/v1/users");
           const users = await response.json();
 
           const container = document.getElementById("usersContainer");
@@ -483,7 +613,7 @@
 
       async function updateUser(id, username, email) {
         try {
-          const response = await fetch(`/users/${id}`, {
+          const response = await fetch(`/api/v1/users/${id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
@@ -537,7 +667,7 @@
       async function deleteUser(id) {
         if (confirm("정말로 이 사용자를 삭제하시겠습니까?")) {
           try {
-            const response = await fetch(`/users/${id}`, {
+            const response = await fetch(`/api/v1/users/${id}`, {
               method: "DELETE",
             });
 

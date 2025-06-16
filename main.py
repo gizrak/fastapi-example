@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 import httpx
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -11,6 +12,9 @@ from fastapi.templating import Jinja2Templates
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, field_validator
+
+# Load environment variables from .env file
+load_dotenv()
 
 # OAuth2 Configuration
 # These can be overridden by environment variables:
@@ -166,13 +170,28 @@ class UserCreate(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     await asyncio.sleep(0.001)
+
+    current_user = None
+    if AUTH_ENABLED:
+        try:
+            # 인증이 활성화된 경우 현재 사용자 정보를 가져오려고 시도
+            current_user = await get_current_user(request, None)
+        except HTTPException:
+            # 인증 실패 시 None으로 유지
+            current_user = None
+
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "users": users_db, "auth_enabled": AUTH_ENABLED},
+        {
+            "request": request,
+            "users": users_db,
+            "auth_enabled": AUTH_ENABLED,
+            "user": current_user,
+        },
     )
 
 
-@app.post("/users/", response_model=User)
+@app.post("/api/v1/users/", response_model=User)
 async def create_user(user: UserCreate):  # No protection for now, direct creation
     await asyncio.sleep(0.001)
     global next_user_id
@@ -192,13 +211,13 @@ async def create_user(user: UserCreate):  # No protection for now, direct creati
     return db_user
 
 
-@app.get("/users/", response_model=List[User])
+@app.get("/api/v1/users/", response_model=List[User])
 async def read_users(current_user: User = Depends(get_current_user)):
     await asyncio.sleep(0.001)
     return users_db
 
 
-@app.get("/users/{user_id}", response_model=User)
+@app.get("/api/v1/users/{user_id}", response_model=User)
 async def read_user(user_id: int, current_user: User = Depends(get_current_user)):
     await asyncio.sleep(0.001)
     for user in users_db:
@@ -207,7 +226,7 @@ async def read_user(user_id: int, current_user: User = Depends(get_current_user)
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@app.put("/users/{user_id}", response_model=User)
+@app.put("/api/v1/users/{user_id}", response_model=User)
 async def update_user(user_id: int, user_update: UserCreate):
     await asyncio.sleep(0.001)
     for db_user in users_db:
@@ -220,7 +239,7 @@ async def update_user(user_id: int, user_update: UserCreate):
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@app.delete("/users/{user_id}")
+@app.delete("/api/v1/users/{user_id}")
 async def delete_user(user_id: int):
     await asyncio.sleep(0.001)
     global users_db
@@ -299,8 +318,8 @@ async def callback(code: str = None):  # Made code optional for the disabled cas
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
-    # Set the JWT token in an HttpOnly cookie and redirect to /main
-    redirect_response = RedirectResponse(url="/main", status_code=status.HTTP_302_FOUND)
+    # Set the JWT token in an HttpOnly cookie and redirect to home page
+    redirect_response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     redirect_response.set_cookie(
         key="access_token",
         value=jwt_token,
@@ -329,8 +348,8 @@ async def main_page(request: Request, current_user: User = Depends(get_current_u
 
 @app.post("/logout")  # Changed to POST as it changes server state (session)
 async def logout_user():
-    # Create a redirect response to the login page
-    response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    # Create a redirect response to the home page
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
     # Clear the access_token cookie by setting it with an expired time and no value
     response.delete_cookie(
@@ -342,7 +361,7 @@ async def logout_user():
     return response
 
 
-@app.get("/api/users", response_model=List[User])
+@app.get("/api/v1/users", response_model=List[User])
 async def get_users_api():
     """API endpoint to get users without authentication for frontend use"""
     await asyncio.sleep(0.001)
