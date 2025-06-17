@@ -1,133 +1,171 @@
 import pytest
 import asyncio
+from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
-from fastapi import WebSocketDisconnect
+from unittest.mock import patch # For mocking if needed later
 
-from main import app # Assuming your FastAPI app instance is in main.py
-from app.auth import create_access_token, User, users_db, AUTH_ENABLED, SECRET_KEY, ALGORITHM
-from datetime import timedelta
-import os
+# Import from main app factory and models/auth for type hints and direct use in fixtures
+from main import create_app
+from app.models import User
+# Import specific auth functions that fixtures will use from the reloaded app.auth
+from app.auth import get_password_hash, create_access_token as app_create_access_token
 
-# Ensure consistent SECRET_KEY for tests, same as in app.auth if not overridden by env
-TEST_SECRET_KEY = os.getenv("SECRET_KEY", "YOUR_SECRET_KEY_DEFAULT")
-if TEST_SECRET_KEY == "YOUR_SECRET_KEY_DEFAULT":
-    print("Warning: Using default SECRET_KEY for tests. Ensure this is intentional.")
+# --- Core Fixtures ---
+@pytest.fixture
+def app_settings(request):
+    """
+    Provides settings for app creation.
+    Chat tests generally require AUTH_ENABLED=True.
+    Specific tests can override via parametrization if needed.
+    """
+    default_settings = {
+        "AUTH_ENABLED": True,
+        "SECRET_KEY": "TEST_CHAT_SECRET_KEY", # Specific key for chat tests if desired
+        # Add other necessary env vars for chat app context if any
+    }
+    if hasattr(request, "param") and isinstance(request.param, dict):
+        default_settings.update(request.param)
+    return default_settings
 
-# Test users - clear this at the start of a session or manage carefully if tests run in parallel
-# For simplicity, we'll add to it. A fixture could manage this better.
-_test_user_id_counter = 9000
+@pytest.fixture
+def app(app_settings: dict, monkeypatch) -> FastAPI: # Added monkeypatch
+    """
+    Creates a FastAPI app instance for each test, configured by app_settings,
+    using the application factory.
+    """
+    # Set environment variables based on app_settings before calling create_app
+    for key, value in app_settings.items():
+        monkeypatch.setenv(key, str(value))
 
-def get_or_create_test_user(username: str, email: str) -> User:
-    global _test_user_id_counter
-    for user in users_db:
-        if user.email == email:
-            return user
+    # Ensure other potentially used env vars are set if not in app_settings
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "TEST_CHAT_GOOGLE_ID") # Placeholder
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "TEST_CHAT_GOOGLE_SECRET") # Placeholder
+    monkeypatch.setenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/oauth/callback")
 
-    new_user = User(id=_test_user_id_counter, username=username, email=email, hashed_password="test_password")
-    _test_user_id_counter += 1
-    users_db.append(new_user)
-    return new_user
 
-def generate_test_token(user: User) -> str:
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=timedelta(minutes=15)
+    return create_app(settings_override=app_settings)
+
+@pytest.fixture
+def client(app: FastAPI) -> TestClient:
+    """Provides a TestClient for the app instance."""
+    with TestClient(app) as c:
+        yield c
+
+@pytest.fixture
+def current_app_auth(app: FastAPI):
+    """
+    Provides access to the reloaded app.auth module specific to the app instance.
+    Relies on create_app having reloaded app.auth and it being in sys.modules.
+    """
+    import sys
+    return sys.modules['app.auth']
+
+# --- User and Token Fixtures ---
+
+@pytest.fixture
+def created_chat_user(app: FastAPI, current_app_auth, request) -> User:
+    """
+    Creates a user in app.state.users_db based on parameters passed via request.param.
+    request.param should be a dict like {"username": "user1", "email": "user1@example.com"}
+    """
+    user_data = request.param
+    users_db_on_state = app.state.users_db
+    next_user_id_on_state = app.state.next_user_id
+
+    # Check if user already exists by email
+    for u in users_db_on_state:
+        if u.email == user_data["email"]:
+            return u # Return existing user
+
+    # Create new user
+    # Chat users might not need passwords if auth is just via token from main login
+    hashed_pwd = current_app_auth.get_password_hash("testpassword")
+    user = User(
+        id=next_user_id_on_state,
+        username=user_data["username"],
+        email=user_data["email"],
+        hashed_password=hashed_pwd
     )
-    return access_token
+    users_db_on_state.append(user)
+    app.state.next_user_id += 1
+    return user
 
-@pytest.fixture(scope="module")
-def client():
-    # This fixture ensures that AUTH_ENABLED is true for the tests in this module.
-    # It temporarily modifies the AUTH_ENABLED in the app.auth module.
-    original_auth_enabled = AUTH_ENABLED
-    import app.auth
-    app.auth.AUTH_ENABLED = True
+@pytest.fixture
+def chat_token(current_app_auth, created_chat_user: User) -> str:
+    """Generates an auth token for the created_chat_user."""
+    return current_app_auth.create_access_token(data={"sub": created_chat_user.email})
 
-    # Also ensure users_db is clean for this module, or manage users carefully
-    original_users_db_content = list(users_db)
-    users_db.clear()
+# --- Test Functions ---
 
-    yield TestClient(app)
-
-    # Restore original state
-    app.auth.AUTH_ENABLED = original_auth_enabled
-    users_db.clear()
-    users_db.extend(original_users_db_content)
-
-
-def test_websocket_connection_authenticated(client: TestClient):
-    test_user = get_or_create_test_user(username="auth_user", email="auth@example.com")
-    token = generate_test_token(test_user)
-
-    with client.websocket_connect(f"/ws/{token}") as websocket:
-        # If client.websocket_connect does not raise an exception, the connection is considered successful.
-        # No message is sent back to the client upon successful connection by the current server implementation.
-        # We can optionally send a message and have another client try to receive it,
-        # but that's covered in the broadcast test.
-        # For this test, simply establishing the connection without error is sufficient.
-        assert websocket.application_state == "connected" # TestClient's internal state
-    # Exiting the 'with' block will close the websocket.
-
+# This test uses the created_chat_user fixture parametrized.
+@pytest.mark.parametrize("created_chat_user", [{"username": "auth_user_ws", "email": "auth_ws@example.com"}], indirect=True)
+def test_websocket_connection_authenticated(client: TestClient, chat_token: str):
+    with client.websocket_connect(f"/ws/{chat_token}") as websocket:
+        assert websocket.application_state == "connected"
+    # Connection closes automatically on exit from 'with'
 
 def test_websocket_connection_invalid_token(client: TestClient):
     with pytest.raises(WebSocketDisconnect) as excinfo:
         with client.websocket_connect("/ws/invalidtoken123"):
-            pass # Should not reach here
+            pass
     assert excinfo.value.code == 1008 # Policy Violation
 
+# This test does not use created_chat_user fixture parametrization as it sets up two users manually.
+def test_message_broadcast_two_clients(client: TestClient, app: FastAPI, current_app_auth):
+    # This test will be run twice by pytest due to parametrization of created_chat_user. # This comment is now incorrect.
+    # We need two distinct users and tokens.
+    # The current fixture setup will create user1 then user2 if we manage it carefully or call fixtures multiple times. # This comment is now incorrect.
+    # This is tricky with parametrized created_chat_user.
+    # Let's create users manually for this specific test for clarity.
 
-def test_message_broadcast_two_clients(client: TestClient):
-    user1 = get_or_create_test_user(username="user1_chat", email="user1_chat@example.com")
-    user2 = get_or_create_test_user(username="user2_chat", email="user2_chat@example.com")
+    user1_data = {"username": "user1_broad", "email": "user1_broad@example.com"}
+    user2_data = {"username": "user2_broad", "email": "user2_broad@example.com"}
 
-    token1 = generate_test_token(user1)
-    token2 = generate_test_token(user2)
+    # Manually create users in the app.state.users_db for this test's app instance
+    user1 = User(id=app.state.next_user_id, **user1_data, hashed_password=get_password_hash("pw1"))
+    app.state.next_user_id +=1
+    app.state.users_db.append(user1)
+
+    user2 = User(id=app.state.next_user_id, **user2_data, hashed_password=get_password_hash("pw2"))
+    app.state.next_user_id +=1
+    app.state.users_db.append(user2)
+
+    token1 = current_app_auth.create_access_token(data={"sub": user1.email})
+    token2 = current_app_auth.create_access_token(data={"sub": user2.email})
 
     with client.websocket_connect(f"/ws/{token1}") as websocket1, \
          client.websocket_connect(f"/ws/{token2}") as websocket2:
 
-        # User1 sends a message
         websocket1.send_text("Hello from User1")
-
-        # User2 should receive it
-        message_from_user1 = websocket2.receive_text(timeout=5) # Add timeout
+        message_from_user1 = websocket2.receive_text(timeout=1) # Short timeout
         assert message_from_user1 == f"{user1.username}: Hello from User1"
 
-        # User1 should NOT receive its own message (standard broadcast logic)
-        # User1 should not receive their own message.
-        # First, check for asyncio.TimeoutError if no message is received within the timeout.
+        # User1 should NOT receive its own message if broadcast logic excludes sender
+        # The current ConnectionManager.broadcast sends to all *other* connections.
         with pytest.raises(asyncio.TimeoutError):
-            websocket1.receive_text()
+            websocket1.receive_text(timeout=0.1)
 
-        # Then, check for WebSocketDisconnect if the connection is closed unexpectedly.
-        with pytest.raises(WebSocketDisconnect):
-            websocket1.receive_text()
-def test_user_leaves_notification(client: TestClient):
-    user_leaver = get_or_create_test_user(username="leaver_user", email="leaver@example.com")
-    user_observer = get_or_create_test_user(username="observer_user", email="observer@example.com")
+# This test does not use created_chat_user fixture parametrization as it sets up two users manually.
+def test_user_leaves_notification(client: TestClient, app: FastAPI, current_app_auth):
+    # Similar to above, manual user creation for clarity in this multi-user test
+    leaver_data = {"username": "leaver_notify", "email": "leaver_notify@example.com"}
+    observer_data = {"username": "observer_notify", "email": "observer_notify@example.com"}
 
-    token_leaver = generate_test_token(user_leaver)
-    token_observer = generate_test_token(user_observer)
+    user_leaver = User(id=app.state.next_user_id, **leaver_data, hashed_password=get_password_hash("pw_l"))
+    app.state.next_user_id +=1
+    app.state.users_db.append(user_leaver)
+
+    user_observer = User(id=app.state.next_user_id, **observer_data, hashed_password=get_password_hash("pw_o"))
+    app.state.next_user_id +=1
+    app.state.users_db.append(user_observer)
+
+    token_leaver = current_app_auth.create_access_token(data={"sub": user_leaver.email})
+    token_observer = current_app_auth.create_access_token(data={"sub": user_observer.email})
 
     with client.websocket_connect(f"/ws/{token_observer}") as websocket_observer:
-        # Leaver connects
         with client.websocket_connect(f"/ws/{token_leaver}") as websocket_leaver:
-            # Leaver is connected, observer is connected.
-            # Now leaver disconnects (by exiting the 'with' block for websocket_leaver)
-            pass # websocket_leaver automatically closes here
+            # websocket_leaver is connected
+            pass # websocket_leaver automatically closes here, triggering disconnect logic
 
-        # Observer should receive a "left the chat" message
-        # The message is defined in app/routers/chat.py as f"{user.username} left the chat"
-        leave_message = websocket_observer.receive_text(timeout=5)
+        leave_message = websocket_observer.receive_text(timeout=1) # Short timeout
         assert leave_message == f"{user_leaver.username} left the chat"
-
-# TODO: Add test for user disconnecting due to error if that message is different.
-# The current chat.py disconnects with:
-# manager.disconnect(websocket, user)
-# await manager.broadcast(f"{user.username} left the chat", user)
-# OR
-# await manager.broadcast(f"User {user.username} disconnected due to an error.", user)
-# The "User {user.username} disconnected due to an error" is when an exception occurs in the read loop.
-# The "User {user.username} left the chat" is for clean WebSocketDisconnect.
-# The test above covers the clean disconnect.
-# Testing the error disconnect path would require forcing an error on the server-side for a specific client,
-# which is more complex to set up in a test.
